@@ -15,12 +15,15 @@ IF OBJECT_ID(N'dbo.usuario',         N'U') IS NOT NULL DROP TABLE dbo.usuario;
 IF OBJECT_ID(N'dbo.rol',             N'U') IS NOT NULL DROP TABLE dbo.rol;
 GO
 
+-- ROL: los tipos de usuario del sistema (Administrador, Recepcionista). Define los permisos.
 CREATE TABLE dbo.rol (
     id_rol  INT IDENTITY(1,1) NOT NULL CONSTRAINT pk_rol PRIMARY KEY,
     nombre  NVARCHAR(30)      NOT NULL CONSTRAINT uq_rol_nombre UNIQUE
 );
 GO
 
+-- USUARIO: las personas que inician sesión. La clave se guarda como hash SHA-256, nunca en texto plano.
+-- id_rol es clave foránea (FK): cada usuario tiene que tener un rol que exista en la tabla rol.
 CREATE TABLE dbo.usuario (
     id_usuario      INT IDENTITY(1,1) NOT NULL CONSTRAINT pk_usuario PRIMARY KEY,
     documento       NVARCHAR(15)      NOT NULL CONSTRAINT uq_usuario_documento UNIQUE,
@@ -33,6 +36,8 @@ CREATE TABLE dbo.usuario (
 );
 GO
 
+-- PLAN_MEMBRESIA: los planes que se venden. duracion_dias dice cuánto dura cada cuota.
+-- Los CHECK impiden guardar precios <= 0 o duraciones fuera de rango, aunque falle la validación del programa.
 CREATE TABLE dbo.plan_membresia (
     id_plan        INT IDENTITY(1,1) NOT NULL CONSTRAINT pk_plan PRIMARY KEY,
     nombre         NVARCHAR(60)      NOT NULL CONSTRAINT uq_plan_nombre UNIQUE,
@@ -44,6 +49,8 @@ CREATE TABLE dbo.plan_membresia (
 );
 GO
 
+-- SOCIO: los clientes del gimnasio. El dni es UNIQUE (no puede repetirse).
+-- estado = 0 es una baja LÓGICA: el socio sigue en la tabla para no perder su historial.
 CREATE TABLE dbo.socio (
     id_socio   INT IDENTITY(1,1) NOT NULL CONSTRAINT pk_socio PRIMARY KEY,
     dni        NVARCHAR(8)       NOT NULL CONSTRAINT uq_socio_dni UNIQUE,
@@ -58,6 +65,8 @@ CREATE TABLE dbo.socio (
 );
 GO
 
+-- CUOTA: historial de pagos. NO se guarda 'si el socio está al día': se calcula con el mayor
+-- fecha_vencimiento de sus cuotas (ver la vista vw_socio_estado en el script 04).
 CREATE TABLE dbo.cuota (
     id_cuota          INT IDENTITY(1,1) NOT NULL CONSTRAINT pk_cuota PRIMARY KEY,
     id_socio          INT               NOT NULL,
@@ -73,10 +82,12 @@ CREATE TABLE dbo.cuota (
     CONSTRAINT fk_cuota_usuario FOREIGN KEY (id_usuario) REFERENCES dbo.usuario (id_usuario)
 );
 GO
+-- Los índices aceleran las búsquedas más frecuentes (cuota vigente de un socio, pagos por fecha).
 CREATE INDEX ix_cuota_socio_venc ON dbo.cuota (id_socio, fecha_vencimiento);
 CREATE INDEX ix_cuota_fecha_pago ON dbo.cuota (fecha_pago);
 GO
 
+-- ASISTENCIA: cada intento de ingreso, permitido (1) o denegado (0) con su motivo.
 CREATE TABLE dbo.asistencia (
     id_asistencia INT IDENTITY(1,1) NOT NULL CONSTRAINT pk_asistencia PRIMARY KEY,
     id_socio      INT               NOT NULL,

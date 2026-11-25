@@ -1,5 +1,6 @@
 ﻿namespace CapaEntidad
 {
+    /// <summary>Los cinco números que se muestran en las tarjetas de la pantalla de inicio.</summary>
     public class ResumenDashboard
     {
         public int SociosActivos { get; set; }
