@@ -4,28 +4,34 @@ using CapaEntidad;
 
 namespace CapaDatos
 {
+    /// <summary>Consultas SQL sobre la tabla cuota (historial de pagos).</summary>
     public class CD_Cuota
     {
-        public int Registrar(Cuota c)
+        /// <summary>Guarda un pago nuevo. Devuelve el id de la cuota creada.</summary>
+        public int Registrar(Cuota cuota)
         {
-            long id = Conexion.Insertar(
+            return Conexion.InsertarYObtenerId(
                 "INSERT INTO cuota (id_socio, id_plan, fecha_pago, fecha_desde, fecha_vencimiento, monto, medio_pago, id_usuario) " +
-                "VALUES (@socio, @plan, @pago, @desde, @venc, @monto, @medio, @usuario)",
-                Conexion.P("@socio", c.IdSocio), Conexion.P("@plan", c.IdPlan),
-                Conexion.P("@pago", c.FechaPago), Conexion.P("@desde", c.FechaDesde.Date),
-                Conexion.P("@venc", c.FechaVencimiento.Date), Conexion.P("@monto", c.Monto),
-                Conexion.P("@medio", c.MedioPago), Conexion.P("@usuario", c.IdUsuario));
-            return (int)id;
+                "VALUES (@idSocio, @idPlan, @fechaPago, @fechaDesde, @fechaVencimiento, @monto, @medioPago, @idUsuario)",
+                Conexion.Parametro("@idSocio", cuota.IdSocio),
+                Conexion.Parametro("@idPlan", cuota.IdPlan),
+                Conexion.Parametro("@fechaPago", cuota.FechaPago),
+                Conexion.Parametro("@fechaDesde", cuota.FechaDesde.Date),
+                Conexion.Parametro("@fechaVencimiento", cuota.FechaVencimiento.Date),
+                Conexion.Parametro("@monto", cuota.Monto),
+                Conexion.Parametro("@medioPago", cuota.MedioPago),
+                Conexion.Parametro("@idUsuario", cuota.IdUsuario));
         }
 
+        /// <summary>Historial de pagos de un socio, del más reciente al más antiguo.</summary>
         public DataTable ListarPorSocio(int idSocio)
         {
-            return Conexion.Consultar(
+            return Conexion.ObtenerTabla(
                 "SELECT c.fecha_pago, c.fecha_desde, c.fecha_vencimiento, c.monto, c.medio_pago, " +
                 "u.nombre_completo AS cobrado_por " +
                 "FROM cuota c INNER JOIN usuario u ON u.id_usuario = c.id_usuario " +
-                "WHERE c.id_socio = @id ORDER BY c.fecha_pago DESC, c.id_cuota DESC",
-                Conexion.P("@id", idSocio));
+                "WHERE c.id_socio = @idSocio ORDER BY c.fecha_pago DESC, c.id_cuota DESC",
+                Conexion.Parametro("@idSocio", idSocio));
         }
     }
 }
