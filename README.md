@@ -36,10 +36,19 @@ SistemaGimnasio.sln
 
 1. **Login** con roles.
 2. **Inicio / Dashboard**: indicadores, gráfico de asistencias, morosos y próximos vencimientos.
-3. **Socios y planes**: ABM con búsqueda, baja lógica y permisos por rol.
+3. **Socios y planes**: ABM con búsqueda, baja lógica y permisos por rol (la pestaña *Planes* es solo del administrador).
 4. **Cuotas e ingreso**: control de ingreso (valida cuota vigente) y cobro de cuotas con cálculo automático del período.
 
-Más detalle en la carpeta `Documentacion`.
+Más detalle en la carpeta `Documentacion` (`Mapa_del_codigo.md` explica quién hace qué y cómo viaja un dato de la pantalla a la base).
+
+## Editar las pantallas en el diseñador
+
+Cada formulario tiene dos archivos: `frmX.cs` (la lógica) y `frmX.Designer.cs` (el diseño). Para verlo y editarlo:
+
+- En el Explorador de soluciones, clic derecho sobre `frmLogin.cs`, `frmInicio.cs`, `frmSocios.cs` o `frmCuotas.cs` > **Ver diseñador** (o seleccionalo y apretá `Shift+F7`).
+- Podés mover controles, cambiar textos, colores y tamaños desde la ventana *Propiedades*, y agregar controles desde el *Cuadro de herramientas*. Visual Studio actualiza el `.Designer.cs` solo.
+- Para ver el código de un evento (por ejemplo el clic de un botón), hacé doble clic sobre el control.
+- Los nombres de los controles (`btnGuardarSocio`, `txtDni`, `gridSocios`, ...) los usa la lógica: si los renombrás, hacelo con *Refactorizar > Cambiar nombre*.
 
 ## Si algo falla
 

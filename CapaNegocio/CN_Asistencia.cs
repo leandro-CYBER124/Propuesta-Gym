@@ -5,81 +5,89 @@ using CapaEntidad;
 
 namespace CapaNegocio
 {
+    /// <summary>Reglas de negocio del control de ingreso al gimnasio.</summary>
     public class CN_Asistencia
     {
         private readonly CD_Socio datosSocio = new CD_Socio();
-        private readonly CD_Asistencia datos = new CD_Asistencia();
+        private readonly CD_Asistencia datosAsistencia = new CD_Asistencia();
 
         /// <summary>
-        /// Controla el ingreso de un socio: debe existir, estar activo y tener la cuota vigente.
-        /// Los intentos denegados quedan registrados; un segundo ingreso el mismo día no se vuelve a registrar.
+        /// Decide si un socio puede entrar. Se evalúa EN ESTE ORDEN:
+        ///  1) DNI con formato válido   2) el socio existe   3) está activo
+        ///  4) pagó alguna cuota        5) la cuota no está vencida   6) no ingresó ya hoy
+        /// Los rechazos 3, 4 y 5 quedan registrados en la tabla asistencia con su motivo.
         /// </summary>
-        public ResultadoIngreso RegistrarIngreso(string dni, int idUsuario)
+        public ResultadoIngreso RegistrarIngreso(string dniIngresado, int idUsuarioQueRegistra)
         {
-            ResultadoIngreso res = new ResultadoIngreso();
-            dni = (dni ?? "").Trim();
+            ResultadoIngreso resultado = new ResultadoIngreso(); // por defecto: Permitido = false
+            dniIngresado = (dniIngresado ?? "").Trim();
 
-            if (!Validaciones.DniValido(dni))
+            // 1) Formato del DNI
+            if (!Validaciones.DniValido(dniIngresado))
             {
-                res.Mensaje = "Ingresá un DNI válido (7 u 8 números).";
-                return res;
+                resultado.Mensaje = "Ingresá un DNI válido (7 u 8 números).";
+                return resultado;
             }
 
-            Socio socio = datosSocio.ObtenerPorDni(dni);
+            // 2) Existe el socio
+            Socio socio = datosSocio.ObtenerPorDni(dniIngresado);
             if (socio == null)
             {
-                res.Mensaje = "No existe ningún socio con el DNI " + dni + ".";
-                return res;
+                resultado.Mensaje = "No existe ningún socio con el DNI " + dniIngresado + ".";
+                return resultado;
             }
-            res.Socio = socio;
+            resultado.Socio = socio;
 
             DateTime hoy = DateTime.Today;
-            string motivo = null;
+            string motivoDelRechazo = null;
 
+            // 3), 4) y 5): estado del socio y de su cuota
             if (!socio.Estado)
             {
-                motivo = "El socio está dado de baja.";
+                motivoDelRechazo = "El socio está dado de baja.";
             }
             else if (!socio.UltimoVencimiento.HasValue)
             {
-                motivo = "El socio todavía no pagó ninguna cuota.";
+                motivoDelRechazo = "El socio todavía no pagó ninguna cuota.";
             }
             else if (socio.UltimoVencimiento.Value.Date < hoy)
             {
-                int atraso = -ReglasCuota.DiasRestantes(socio.UltimoVencimiento.Value, hoy);
-                motivo = "Cuota vencida el " + socio.UltimoVencimiento.Value.ToString("dd/MM/yyyy") +
-                         " (hace " + atraso + (atraso == 1 ? " día)." : " días).");
+                int diasDeAtraso = -ReglasCuota.DiasRestantes(socio.UltimoVencimiento.Value, hoy);
+                motivoDelRechazo = "Cuota vencida el " + socio.UltimoVencimiento.Value.ToString("dd/MM/yyyy") +
+                                   " (hace " + diasDeAtraso + (diasDeAtraso == 1 ? " día)." : " días).");
             }
 
-            if (motivo != null)
+            if (motivoDelRechazo != null)
             {
-                datos.Registrar(socio.IdSocio, false, motivo, idUsuario);
-                res.Mensaje = motivo;
-                return res;
+                datosAsistencia.Registrar(socio.IdSocio, false, motivoDelRechazo, idUsuarioQueRegistra);
+                resultado.Mensaje = motivoDelRechazo;
+                return resultado;
             }
 
-            DateTime? primero = datos.PrimerIngresoDelDia(socio.IdSocio, hoy);
-            if (primero.HasValue)
+            // 6) Un solo ingreso permitido por día. El segundo intento se avisa pero NO se vuelve a guardar.
+            DateTime? horaDelPrimerIngreso = datosAsistencia.PrimerIngresoDelDia(socio.IdSocio, hoy);
+            if (horaDelPrimerIngreso.HasValue)
             {
-                res.Mensaje = "Ya registró su ingreso hoy a las " + primero.Value.ToString("HH:mm") + ".";
-                return res;
+                resultado.Mensaje = "Ya registró su ingreso hoy a las " + horaDelPrimerIngreso.Value.ToString("HH:mm") + ".";
+                return resultado;
             }
 
-            datos.Registrar(socio.IdSocio, true, "Ingreso correcto", idUsuario);
+            // Todo en orden: se guarda el ingreso y se arma el mensaje de bienvenida.
+            datosAsistencia.Registrar(socio.IdSocio, true, "Ingreso correcto", idUsuarioQueRegistra);
 
-            int restantes = ReglasCuota.DiasRestantes(socio.UltimoVencimiento.Value, hoy);
-            res.Permitido = true;
-            res.Advertencia = restantes <= 3;
-            res.Mensaje = restantes == 0
+            int diasRestantes = ReglasCuota.DiasRestantes(socio.UltimoVencimiento.Value, hoy);
+            resultado.Permitido = true;
+            resultado.Advertencia = diasRestantes <= 3; // aviso naranja si vence en 3 días o menos
+            resultado.Mensaje = diasRestantes == 0
                 ? "Su cuota vence hoy."
-                : "Su cuota vence en " + restantes + (restantes == 1 ? " día" : " días") +
+                : "Su cuota vence en " + diasRestantes + (diasRestantes == 1 ? " día" : " días") +
                   " (" + socio.UltimoVencimiento.Value.ToString("dd/MM/yyyy") + ").";
-            return res;
+            return resultado;
         }
 
         public DataTable ListarDelDia()
         {
-            return datos.ListarDelDia(DateTime.Today);
+            return datosAsistencia.ListarDelDia(DateTime.Today);
         }
     }
 }

@@ -3,37 +3,46 @@ using CapaEntidad;
 
 namespace CapaNegocio
 {
+    /// <summary>Reglas de negocio de los usuarios: iniciar sesión.</summary>
     public class CN_Usuario
     {
-        private readonly CD_Usuario datos = new CD_Usuario();
+        private readonly CD_Usuario datosUsuario = new CD_Usuario();
 
-        /// <summary>Valida documento y clave. Devuelve el usuario o null con el motivo en "mensaje".</summary>
-        public Usuario Login(string documento, string clave, out string mensaje)
+        /// <summary>
+        /// Valida documento y clave. Devuelve el usuario si son correctos;
+        /// si no, devuelve null y deja el motivo en "mensajeDeError".
+        /// </summary>
+        public Usuario Login(string documentoIngresado, string claveIngresada, out string mensajeDeError)
         {
-            mensaje = "";
-            documento = (documento ?? "").Trim();
+            mensajeDeError = "";
+            documentoIngresado = (documentoIngresado ?? "").Trim();
 
-            if (documento.Length == 0 || string.IsNullOrEmpty(clave))
+            // PASO 1: que hayan escrito algo.
+            if (documentoIngresado.Length == 0 || string.IsNullOrEmpty(claveIngresada))
             {
-                mensaje = "Completá el documento y la clave.";
+                mensajeDeError = "Completá el documento y la clave.";
                 return null;
             }
 
-            Usuario u = datos.ObtenerPorDocumento(documento);
+            // PASO 2: buscar el usuario en la base y comparar HASH contra HASH.
+            Usuario usuarioEncontrado = datosUsuario.ObtenerPorDocumento(documentoIngresado);
+            string hashDeLaClaveIngresada = Seguridad.Sha256(claveIngresada);
 
-            if (u == null || u.ClaveHash != Seguridad.Sha256(clave))
+            // Mismo mensaje para "no existe" y "clave incorrecta": así no se revela qué documentos existen.
+            if (usuarioEncontrado == null || usuarioEncontrado.ClaveHash != hashDeLaClaveIngresada)
             {
-                mensaje = "Documento o clave incorrectos.";
+                mensajeDeError = "Documento o clave incorrectos.";
                 return null;
             }
 
-            if (!u.Estado)
+            // PASO 3: que el usuario esté habilitado.
+            if (!usuarioEncontrado.Estado)
             {
-                mensaje = "El usuario está deshabilitado. Consultá con el administrador.";
+                mensajeDeError = "El usuario está deshabilitado. Consultá con el administrador.";
                 return null;
             }
 
-            return u;
+            return usuarioEncontrado;
         }
     }
 }
