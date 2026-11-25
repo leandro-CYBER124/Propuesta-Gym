@@ -29,8 +29,8 @@ SistemaGimnasio.sln
 
 | Rol | Documento | Clave |
 |---|---|---|
-| Administrador | 10000001 | admin123 |
-| Recepcionista | 10000002 | recep123 |
+| Administrador | 43848028 | admin123 |
+| Recepcionista | 28790136 | recep123 |
 
 ## Las 4 pantallas
 
